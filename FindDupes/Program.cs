@@ -12,7 +12,7 @@ namespace FindDupes
         private static readonly List<string> ExclusionDirs = new List<string>
         {
             "C:\\$Recycle.Bin",
-            "E:\\Prog",
+            //"E:\\Prog",
             "E:\\Music\\Missing Spotify Songs",
             "C:\\Users\\philw\\Source\\Repos",
             "C:\\Program Files",
@@ -21,6 +21,9 @@ namespace FindDupes
             "C:\\Users\\philw\\AppData",
             "C:\\Users\\All Users",
             "C:\\ProgramData",
+            "C:\\inetpub",
+            "C:\\ffmpeg",
+            "C:\\Users\\Default",
             "C:\\Users\\philw\\.",
             "C:\\Users\\philw\\Documents\\Visual Studio",
             "C:\\Users\\philw\\Desktop\\Code",
@@ -34,6 +37,7 @@ namespace FindDupes
             "C:\\Users\\Public\\Documents\\Overloud",
             "C:\\Users\\philw\\Desktop\\55\\Genesis",
             "C:\\Users\\philw\\Desktop\\Work",
+            "C:\\Users\\philw\\Documents\\NFS Most Wanted",
         };
         private static readonly List<string> ExclusionExtensions = new List<string>
         {
@@ -48,14 +52,27 @@ namespace FindDupes
             ".xsl",
             ".log",
             ".csv",
-            ".ini"
+            ".ini",
+            ".search-ms",
+            ".regtrans-ms",
+            ".dll",
+            ".tt",
+            ".cs",
+            ".nupkg",
+            ".db"
         };
+        private static readonly List<string> ExclusionText = new List<string>
+        {
+            ".git"
+        };
+        private const int _100MBish = 100000000;
 
         static void Main(string[] args)
         {
-            var files = GetFiles("C:\\");
+            var files = GetFiles(AllDrives);
             var dupes = GetDupes(files);
-            WriteDupesToConsole(dupes);
+            var impactingDupes = dupes.Where(f => f.First().Length > _100MBish).ToList();
+            WriteDupesToConsole(impactingDupes);
             //WriteDvdTitlesToConsole(files);
             Console.WriteLine("~ fin ~");
         }
@@ -75,6 +92,7 @@ namespace FindDupes
             {
                 Directory.GetFiles(directoryPath)
                     .Where(f => !ExclusionExtensions.Any(f.EndsWith))
+                    .Where(f => !ExclusionText.Any(f.Contains))
                     .ToList()
                     .ForEach(filePaths.Add);
 
