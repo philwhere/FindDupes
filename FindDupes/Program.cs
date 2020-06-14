@@ -11,6 +11,7 @@ namespace FindDupes
         private static string[] AllDrives = { "E:\\", "C:\\", "T:\\", "S:\\" };
         private static readonly List<string> ExclusionDirs = new List<string>
         {
+            "C:\\$Recycle.Bin",
             "E:\\Prog",
             "E:\\Music\\Missing Spotify Songs",
             "C:\\Users\\philw\\Source\\Repos",
@@ -23,19 +24,44 @@ namespace FindDupes
             "C:\\Users\\philw\\.",
             "C:\\Users\\philw\\Documents\\Visual Studio",
             "C:\\Users\\philw\\Desktop\\Code",
-            "C:\\xampp"
+            "C:\\xampp",
+            "C:\\SSMSTools",
+            "C:\\Cakewalk",
+            "C:\\Users\\philw\\Desktop\\Tools\\GAMES",
+            "C:\\Users\\philw\\Documents\\Native Instruments",
+            "C:\\Users\\philw\\Documents\\IK Multimedia",
+            "C:\\Users\\philw\\Documents\\PositiveGrid",
+            "C:\\Users\\Public\\Documents\\Overloud",
+            "C:\\Users\\philw\\Desktop\\55\\Genesis",
+            "C:\\Users\\philw\\Desktop\\Work",
+        };
+        private static readonly List<string> ExclusionExtensions = new List<string>
+        {
+            ".otf",
+            ".auf",
+            ".bmp",
+            ".itc2",
+            ".lnk",
+            ".xml",
+            ".json",
+            ".igpi",
+            ".xsl",
+            ".log",
+            ".csv",
+            ".ini"
         };
 
         static void Main(string[] args)
         {
-            var files = GetFiles(MainDir);
+            var files = GetFiles("C:\\");
             var dupes = GetDupes(files);
             WriteDupesToConsole(dupes);
             //WriteDvdTitlesToConsole(files);
             Console.WriteLine("~ fin ~");
         }
 
-        private static List<FileInfo> GetFiles(params string[] directoryPaths)
+
+        private static IList<FileInfo> GetFiles(params string[] directoryPaths)
         {
             var filesPaths = new List<string>();
             directoryPaths.ToList().ForEach(p => AddFiles(p, filesPaths));
@@ -43,18 +69,19 @@ namespace FindDupes
             return files;
         }
 
-        private static void AddFiles(string path, IList<string> files)
+        private static void AddFiles(string directoryPath, ICollection<string> filePaths)
         {
             try
             {
-                Directory.GetFiles(path)
+                Directory.GetFiles(directoryPath)
+                    .Where(f => !ExclusionExtensions.Any(f.EndsWith))
                     .ToList()
-                    .ForEach(files.Add);
+                    .ForEach(filePaths.Add);
 
-                Directory.GetDirectories(path)
+                Directory.GetDirectories(directoryPath)
                     .Where(d => !ExclusionDirs.Any(d.StartsWith))
                     .ToList()
-                    .ForEach(s => AddFiles(s, files));
+                    .ForEach(d => AddFiles(d, filePaths));
             }
             catch (UnauthorizedAccessException)
             { }
@@ -66,10 +93,10 @@ namespace FindDupes
                 return;
 
             Console.WriteLine("Dupes\n---------------");
-            foreach (var dupe in dupes)
+            foreach (var dupeGroup in dupes)
             {
-                Console.WriteLine($"{dupe.Key}\n---------------");
-                foreach (var fileInfo in dupe)
+                Console.WriteLine($"{dupeGroup.Key}\n---------------");
+                foreach (var fileInfo in dupeGroup)
                     Console.WriteLine(fileInfo.FullName);
                 Console.WriteLine();
             }
@@ -77,9 +104,12 @@ namespace FindDupes
 
         private static IList<IGrouping<long, FileInfo>> GetDupes(IEnumerable<FileInfo> fileInfos)
         {
-            var dupesBySize = fileInfos.GroupBy(i => i.Length).Where(g => g.Count() > 1).ToList();
+            var dupesBySize = fileInfos.GroupBy(i => i.Length)
+                .Where(g => 
+                    g.Count() > 1 && 
+                    g.All(f => f.Extension == g.First().Extension))
+                .ToList();
             //dupesBySize.RemoveAll(dupeGroup => !AllExactlyEqual(dupeGroup));
-
             return dupesBySize;
         }
 
