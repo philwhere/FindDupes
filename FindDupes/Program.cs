@@ -65,13 +65,13 @@ namespace FindDupes
         {
             ".git"
         };
-        private const int _100MBish = 100000000;
+        private const int _10MBish = 10000000;
 
         static void Main(string[] args)
         {
-            var files = GetFiles(AllDrives);
+            var files = GetFiles(MainDir);
             var dupes = GetDupes(files);
-            var impactingDupes = dupes.Where(f => f.First().Length > _100MBish).ToList();
+            var impactingDupes = dupes.Where(f => f.First().Length > _10MBish).ToList();
             WriteDupesToConsole(impactingDupes);
             //WriteDvdTitlesToConsole(files);
             Console.WriteLine("~ fin ~");
