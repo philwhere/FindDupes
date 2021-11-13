@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 
@@ -7,7 +8,7 @@ namespace FindDupes
 {
     public class Program
     {
-        private const string MainDir = "E:\\Other";
+        private static string[] MainDirs = { "E:\\Other", "S:\\S Hub"};
         private static string[] AllDrives = { "E:\\", "C:\\", "T:\\", "S:\\" };
         private static readonly List<string> ExclusionDirs = new List<string>
         {
@@ -69,12 +70,14 @@ namespace FindDupes
 
         static void Main(string[] args)
         {
-            var files = GetFiles(MainDir);
+            var stopwatch = Stopwatch.StartNew();
+            var files = GetFiles(MainDirs);
             var dupes = GetDupes(files);
             var impactingDupes = dupes.Where(f => f.First().Length > _10MBish).ToList();
             WriteDupesToConsole(impactingDupes);
             //WriteDvdTitlesToConsole(files);
             Console.WriteLine("~ fin ~");
+            Console.WriteLine($"Took {stopwatch.Elapsed.TotalSeconds} seconds");
         }
 
 
@@ -120,21 +123,33 @@ namespace FindDupes
             }
         }
 
-        private static IList<IGrouping<long, FileInfo>> GetDupes(IEnumerable<FileInfo> fileInfos)
+        private static IList<IGrouping<long, FileInfo>> GetDupes(IList<FileInfo> fileInfos)
         {
-            var dupesBySize = fileInfos.GroupBy(i => i.Length)
-                .Where(g => 
-                    g.Count() > 1 && 
-                    g.All(f => f.Extension == g.First().Extension))
+            var dupesBySize = GetDupesByLength(fileInfos);
+            return FilterDupesToExactMatches(dupesBySize);
+        }
+
+        private static List<IGrouping<long, FileInfo>> GetDupesByLength(IList<FileInfo> fileInfos)
+        {
+            var dupesBySize = fileInfos
+                .GroupBy(i => i.Length)
+                .Where(g => g.Count() > 1)
                 .ToList();
-            //dupesBySize.RemoveAll(dupeGroup => !AllExactlyEqual(dupeGroup));
             return dupesBySize;
         }
 
-        private static bool AllExactlyEqual(IGrouping<long, FileInfo> dupeGroup)
+        private static IList<IGrouping<long, FileInfo>> FilterDupesToExactMatches(List<IGrouping<long, FileInfo>> dupesBySize)
         {
-            return dupeGroup.All(file =>
-                dupeGroup.All(f => file == f || FileComparer.FilesAreEqual(file, f)));
+            var allExactlyEqualFiles = new List<FileInfo>();
+            foreach (var sameSizeFileGroup in dupesBySize)
+            {
+                var exactlyEqualFilesInGroup = sameSizeFileGroup.Where(f1 =>
+                    sameSizeFileGroup.Any(f2 => f1 != f2 && FileComparer.FilesAreEqual(f1, f2)));
+
+                allExactlyEqualFiles.AddRange(exactlyEqualFilesInGroup);
+            }
+            var regroupedDupes = allExactlyEqualFiles.GroupBy(f => f.Length).ToList();
+            return regroupedDupes;
         }
 
         private static void WriteDvdTitlesToConsole(IEnumerable<FileInfo> fileInfos)
@@ -147,8 +162,7 @@ namespace FindDupes
         private static string GetDvdMatch(string fileName)
         {
             var parts = fileName.Split(" - ").ToList();
-            var last = parts.IndexOf(parts.Last());
-            return parts.Count > 1 ? parts[last - 1] : "";
+            return parts.Count > 1 ? parts[^2] : "";
         }
     }
 }
