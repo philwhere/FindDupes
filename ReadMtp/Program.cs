@@ -17,8 +17,8 @@ namespace ReadMtp
             using var device = devices.First(d => d.Description == deviceDescription);
             device.Connect();
             var androidDirectoryToSearch = device.GetDirectoryInfo(@"\Phone\DCIM\Camera");
-            const string pcDirectoryToSearch = "E:\\Photos\\Phone Photos";
-            const string pcOutputDirectory = "E:\\Photos\\Phone Photos\\2021";
+            const string pcDirectoryToSearch = "S:\\Photos\\Phone Photos";
+            const string pcOutputDirectory = "S:\\Photos\\Phone Photos\\2022";
 
             ProcessFilesMissingOnPc(SearchOption.TopDirectoryOnly, androidDirectoryToSearch, pcDirectoryToSearch, device, pcOutputDirectory);
 
