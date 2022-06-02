@@ -11,25 +11,30 @@ namespace ReadMtp
     {
         static void Main(string[] args)
         {
-            const string deviceDescription = "SM-G980F";
 
             var devices = MediaDevice.GetDevices();
-            using var device = devices.First(d => d.Description == deviceDescription);
+            //const string deviceDescription = "SM-G980F";
+            //using var device = devices.First(d => d.Description == deviceDescription);
+            using var device = devices.First();
+            Console.WriteLine("Connecting to device...");
             device.Connect();
-            var androidDirectoryToSearch = device.GetDirectoryInfo(@"\Phone\DCIM\Camera");
+            Console.WriteLine("Getting directory info for Camera folder...");
+            var androidDirectoryToSearch = device.GetDirectoryInfo(@"\Internal Storage\DCIM\Camera");
             const string pcDirectoryToSearch = "S:\\Photos\\Phone Photos";
-            const string pcOutputDirectory = "S:\\Photos\\Phone Photos\\2022";
+            const string pcOutputDirectoryRoot = "S:\\Photos\\Phone Photos";
 
-            ProcessFilesMissingOnPc(SearchOption.TopDirectoryOnly, androidDirectoryToSearch, pcDirectoryToSearch, device, pcOutputDirectory);
+            ProcessFilesMissingOnPc(SearchOption.TopDirectoryOnly, androidDirectoryToSearch, pcDirectoryToSearch, device, pcOutputDirectoryRoot);
 
             device.Disconnect();
         }
 
         private static void ProcessFilesMissingOnPc(SearchOption searchOption, MediaDirectoryInfo androidDirectory,
             string pcDirectoryToSearch, MediaDevice device,
-            string pcOutputDirectory)
+            string pcOutputDirectoryRoot)
         {
+            Console.WriteLine("Enumerating android files...");
             var androidFiles = androidDirectory.EnumerateFiles("*.*", searchOption).ToList();
+            Console.WriteLine("Enumerating PC files...");
             var pcFiles = GetFiles(pcDirectoryToSearch);
 
             var join = (
@@ -46,7 +51,7 @@ namespace ReadMtp
             if (filesNotOnPc.Any())
             {
                 WriteToConsole("Not On PC", notOnPc);
-                CopyFilesToPc(device, filesNotOnPc, pcOutputDirectory);
+                CopyFilesToPc(device, filesNotOnPc, pcOutputDirectoryRoot);
             }
 
             //var onPc = join
@@ -56,20 +61,28 @@ namespace ReadMtp
         }
 
         private static void CopyFilesToPc(MediaDevice device, IList<MediaFileInfo> filesNotOnPc,
-            string pcOutputDirectory)
+            string pcOutputDirectoryRoot)
         {
-            var pb = new ProgressBar(PbStyle.SingleLine, filesNotOnPc.Count, 75);
+            var pb = new ProgressBar(PbStyle.SingleLine, filesNotOnPc.Count, 66);
 
             foreach (var file in filesNotOnPc)
             {
-                pb.Refresh(filesNotOnPc.IndexOf(file), $"Writing to {pcOutputDirectory}\\{file.Name} ...");
-
                 using var memoryStream = new MemoryStream();
                 device.DownloadFile(file.FullName, memoryStream);
-                File.WriteAllBytes($@"{pcOutputDirectory}\{file.Name}", memoryStream.ToArray());
+
+                var outputFilePath = GetOutputFilePath(pcOutputDirectoryRoot, file.Name);
+                pb.Refresh(filesNotOnPc.IndexOf(file), $"Writing to {outputFilePath} ...");
+                File.WriteAllBytes(outputFilePath, memoryStream.ToArray());
             }
 
             pb.Refresh(filesNotOnPc.Count, $"Copied {filesNotOnPc.Count} files.");
+        }
+
+        private static string GetOutputFilePath(string pcOutputDirectoryRoot, string fileName)
+        {
+            var year = fileName.Substring(0, 4);
+            var outputFilePath = $"{pcOutputDirectoryRoot}\\{year}\\{fileName}";
+            return outputFilePath;
         }
 
         private static void WriteToConsole(string titleLine, List<(MediaFileInfo ph, FileInfo pc)> fileList)
