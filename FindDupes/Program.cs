@@ -3,79 +3,30 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace FindDupes
 {
     public class Program
     {
-        private static string[] MainDirs = { "E:\\Other", "S:\\S Hub"};
-        private static string[] AllDrives = { "E:\\", "C:\\", "T:\\", "S:\\" };
-        private static readonly List<string> ExclusionDirs = new List<string>
-        {
-            "C:\\$Recycle.Bin",
-            //"E:\\Prog",
-            "E:\\Music\\Missing Spotify Songs",
-            "C:\\Users\\philw\\Source\\Repos",
-            "C:\\Program Files",
-            "C:\\Windows",
-            "C:\\SteamLibrary",
-            "C:\\Users\\philw\\AppData",
-            "C:\\Users\\All Users",
-            "C:\\ProgramData",
-            "C:\\inetpub",
-            "C:\\ffmpeg",
-            "C:\\Users\\Default",
-            "C:\\Users\\philw\\.",
-            "C:\\Users\\philw\\Documents\\Visual Studio",
-            "C:\\Users\\philw\\Desktop\\Code",
-            "C:\\xampp",
-            "C:\\SSMSTools",
-            "C:\\Cakewalk",
-            "C:\\Users\\philw\\Desktop\\Tools\\GAMES",
-            "C:\\Users\\philw\\Documents\\Native Instruments",
-            "C:\\Users\\philw\\Documents\\IK Multimedia",
-            "C:\\Users\\philw\\Documents\\PositiveGrid",
-            "C:\\Users\\Public\\Documents\\Overloud",
-            "C:\\Users\\philw\\Desktop\\55\\Genesis",
-            "C:\\Users\\philw\\Desktop\\Work",
-            "C:\\Users\\philw\\Documents\\NFS Most Wanted",
-        };
-        private static readonly List<string> ExclusionExtensions = new List<string>
-        {
-            ".otf",
-            ".auf",
-            ".bmp",
-            ".itc2",
-            ".lnk",
-            ".xml",
-            ".json",
-            ".igpi",
-            ".xsl",
-            ".log",
-            ".csv",
-            ".ini",
-            ".search-ms",
-            ".regtrans-ms",
-            ".dll",
-            ".tt",
-            ".cs",
-            ".nupkg",
-            ".db"
-        };
-        private static readonly List<string> ExclusionText = new List<string>
-        {
-            ".git"
-        };
-        private const int _10MBish = 10000000;
+        private static readonly string[] MainDirs = [
+            @"S:\S Hub",
+            @"G:\E Hub",
+            @"G:\G Hub",
+            @"G:\T Hub 2",
+            @"G:\temporary T drive",
+            @"T:\T Hub",
+            @"C:\Users\philw\Desktop\convert",
+            @"C:\Users\philw\Desktop\_PROCCCCC",
+            @"C:\Users\philw\Downloads",
+        ];
 
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             var stopwatch = Stopwatch.StartNew();
             var files = GetFiles(MainDirs);
             var dupes = GetDupes(files);
-            var impactingDupes = dupes.Where(f => f.First().Length > _10MBish).ToList();
-            WriteDupesToConsole(impactingDupes);
-            //WriteDvdTitlesToConsole(files);
+            await WriteDupesToConsole(dupes);
             Console.WriteLine("~ fin ~");
             Console.WriteLine($"Took {stopwatch.Elapsed.TotalSeconds} seconds");
         }
@@ -93,22 +44,22 @@ namespace FindDupes
         {
             try
             {
-                Directory.GetFiles(directoryPath)
-                    .Where(f => !ExclusionExtensions.Any(f.EndsWith))
-                    .Where(f => !ExclusionText.Any(f.Contains))
-                    .ToList()
-                    .ForEach(filePaths.Add);
-
-                Directory.GetDirectories(directoryPath)
-                    .Where(d => !ExclusionDirs.Any(d.StartsWith))
-                    .ToList()
-                    .ForEach(d => AddFiles(d, filePaths));
+                var videoExtensions = new[] { "mp4", "mkv", "wmv", "flv", "avi", "mov", "mpg", "mpeg", "m4v", "3gp", "webm" };
+                var patterns = videoExtensions.Select(e => $"*.{e}");
+                foreach ( var pattern in patterns) {
+                    var files = Directory.GetFiles(directoryPath, pattern, SearchOption.AllDirectories);
+                    foreach (var file in files)
+                        filePaths.Add(file);
+                }
             }
             catch (UnauthorizedAccessException)
-            { }
+            {
+                Console.WriteLine($"Unauthorized access to {directoryPath}");
+                throw;
+            }
         }
 
-        private static void WriteDupesToConsole(IList<IGrouping<long, FileInfo>> dupes)
+        private static async Task WriteDupesToConsole(IList<IGrouping<long, FileInfo>> dupes)
         {
             if (!dupes.Any())
                 return;
@@ -118,7 +69,11 @@ namespace FindDupes
             {
                 Console.WriteLine($"{dupeGroup.Key}\n---------------");
                 foreach (var fileInfo in dupeGroup)
+                {
                     Console.WriteLine(fileInfo.FullName);
+                    Process.Start("explorer.exe", $"/select,\"{fileInfo.FullName}\"");
+                    await Task.Delay(2500);
+                }
                 Console.WriteLine();
             }
         }
@@ -150,19 +105,6 @@ namespace FindDupes
             }
             var regroupedDupes = allExactlyEqualFiles.GroupBy(f => f.Length).ToList();
             return regroupedDupes;
-        }
-
-        private static void WriteDvdTitlesToConsole(IEnumerable<FileInfo> fileInfos)
-        {
-            var dvdTitles = fileInfos.GroupBy(i => GetDvdMatch(i.Name)).OrderBy(g => g.Key);
-            foreach (var thing in dvdTitles)
-                Console.WriteLine(thing.Key);
-        }
-
-        private static string GetDvdMatch(string fileName)
-        {
-            var parts = fileName.Split(" - ").ToList();
-            return parts.Count > 1 ? parts[^2] : "";
         }
     }
 }
